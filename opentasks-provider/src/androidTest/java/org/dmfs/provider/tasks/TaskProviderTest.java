@@ -50,6 +50,7 @@ import org.dmfs.opentaskspal.tables.TaskListScoped;
 import org.dmfs.opentaskspal.tables.TaskListsTable;
 import org.dmfs.opentaskspal.tables.TasksTable;
 import org.dmfs.opentaskspal.tasklists.NameData;
+import org.dmfs.opentaskspal.tasks.OriginalInstanceData;
 import org.dmfs.opentaskspal.tasks.OriginalInstanceSyncIdData;
 import org.dmfs.opentaskspal.tasks.StatusData;
 import org.dmfs.opentaskspal.tasks.SyncIdData;
@@ -637,7 +638,9 @@ public class TaskProviderTest
         assertThat(new SingletonIterable<>(
                 new Put<>(exceptionTask, new Composite<>(
                         new TitleData("task1exception"),
-                        new OriginalInstanceSyncIdData("syncId1"))
+                        new OriginalInstanceSyncIdData("syncId1"),
+                        // adding an ORIGINAL_INSTANCE_SYNC_ID also requires an ORIGINAL_INSTANCE_TIME
+                        (transactionContext, builder) -> builder.withValue(Tasks.ORIGINAL_INSTANCE_TIME, 0))
                 )
 
         ), resultsIn(queue,
@@ -664,14 +667,15 @@ public class TaskProviderTest
                 new Put<>(taskList, new NameData("list1")),
                 new Put<>(task, new Composite<>(
                         new TitleData("task1"),
-                        new SyncIdData("syncId1"))
-                )
+                        new SyncIdData("syncId1")))
         ));
         queue.flush();
 
         assertThat(new SingletonIterable<>(
-                new Referring<>(task, Tasks.ORIGINAL_INSTANCE_ID,
-                        new Put<>(exceptionTask, new TitleData("task1exception")))
+                new Put<>(exceptionTask,
+                        new Composite<>(
+                                new TitleData("task1exception"),
+                                new OriginalInstanceData(task, DateTime.now())))
 
         ), resultsIn(queue,
                 new AssertRelated<>(new TasksTable(mAuthority), Tasks.ORIGINAL_INSTANCE_ID, task,
